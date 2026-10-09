@@ -37,7 +37,7 @@ export const StudentLoginPortal: React.FC<StudentLoginPortalProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!identifier.trim()) {
       setErrorMsg('Please enter your Student ID or Mobile Number');
@@ -46,14 +46,34 @@ export const StudentLoginPortal: React.FC<StudentLoginPortalProps> = ({
     setIsLoading(true);
     setErrorMsg(null);
 
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ identifier, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed');
+      }
+
+      // Store the token for future requests
+      localStorage.setItem('lms_token', data.token);
+
       onLoginSuccess({
-        ...initialUser,
-        indexNumber: identifier
+        ...initialUser, // keep mock data for remaining fields for now
+        ...data.user,
       });
       onNavigate('lms');
-    }, 600);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'An error occurred during login');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
