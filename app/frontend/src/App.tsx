@@ -40,6 +40,40 @@ export default function App() {
   // Default to null so public visitors do NOT see Papers and Videos before logging in
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [currency, setCurrency] = useState<'LKR' | 'USD'>('LKR');
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  // Check for existing login on mount
+  useEffect(() => {
+    const checkLogin = async () => {
+      const token = localStorage.getItem('lms_token');
+      if (token) {
+        try {
+          const response = await fetch('/api/users/me', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          if (response.ok) {
+            const data = await response.json();
+            // Merge with some mock initial data just to satisfy types if needed,
+            // but primarily use backend data
+            setCurrentUser({
+              ...initialUser,
+              ...data.user
+            });
+            // If we were going to login, maybe redirect to LMS, else stay where we are
+          } else {
+            localStorage.removeItem('lms_token');
+          }
+        } catch (err) {
+          console.error("Failed to verify token", err);
+          localStorage.removeItem('lms_token');
+        }
+      }
+      setIsInitializing(false);
+    };
+    checkLogin();
+  }, []);
   const [cartItems, setCartItems] = useState<CartItem[]>([
     { material: studyMaterialsData[0], quantity: 1 }
   ]);
@@ -121,6 +155,12 @@ export default function App() {
 
   const totalCartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
 
+  if (isInitializing) {
+    return <div className="min-h-screen flex items-center justify-center apple-bg-ambient">
+      <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+    </div>;
+  }
+
   return (
     <div className="min-h-screen apple-bg-ambient flex flex-col justify-between selection:bg-blue-500/20 selection:text-blue-900 relative">
       
@@ -148,6 +188,7 @@ export default function App() {
         onOpenEnrollment={() => setEnrollmentModalOpen(true)}
         onOpenInstituteSelect={() => setInstitutionSelectOpen(true)}
         onLogout={() => {
+          localStorage.removeItem('lms_token');
           setCurrentUser(null);
           setActiveTab('home');
         }}
